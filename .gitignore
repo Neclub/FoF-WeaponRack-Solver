@@ -1,0 +1,5 @@
+build/
+logs/
+*.obj
+*.exe
+wrc_settings.ini

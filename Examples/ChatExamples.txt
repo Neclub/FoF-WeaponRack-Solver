@@ -1,0 +1,8 @@
+[Sun Oct 18 21:29:07 2026] Beorun tells the guild, 'Doom of the Blacksmith'
+[Sun Oct 18 21:53:03 2026] You say to your guild, 'dun cut off the horns.'
+
+[Sun Oct 18 20:51:24 2026] Aldryn tells the raid, 'standby for a couple mins please'
+[Sun Oct 18 20:51:14 2026] You tell the raid, 'bane needed?'
+
+[Sun Oct 18 20:47:34 2026] Canaka says, 'Hail, Bruiser'
+[Sun Oct 18 20:47:40 2026] You say, 'You will not evade me, Soell!'

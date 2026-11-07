@@ -1,0 +1,11 @@
+[Sun Oct 18 21:29:07 2026] Beorun tells the guild, 'R1`123,R212`3.R31`23!R4``12'
+[Sun Oct 18 21:53:03 2026] You say to your guild, 'R1`123,R212`3.R31`23!R4``12'
+
+[Sun Oct 18 20:51:24 2026] Aldryn tells the raid, 'ignore XR212`3 and r212`3 and R2123 then take (R1````) [R3231`] R4`2`1!'
+[Sun Oct 18 20:51:14 2026] You tell the raid, 'ignore XR212`3 and r212`3 and R2123 then take (R1````) [R3231`] R4`2`1!'
+
+[Sun Oct 18 20:47:34 2026] Canaka says, 'R11`2`3` and pre_R212`3 but R3```1,R421`` done'
+[Sun Oct 18 20:47:40 2026] You say, 'R11`2`3` and pre_R212`3 but R3```1,R421`` done'
+
+[Sun Oct 18 20:48:10 2026] Canaka says, 'nope RR112`3, skip R4123 then (R1123`)(R2``31) [R3`1`2]!R421`3.'
+[Sun Oct 18 20:48:16 2026] You say, 'nope RR112`3, skip R4123 then (R1123`)(R2``31) [R3`1`2]!R421`3.'
