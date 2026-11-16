@@ -1,0 +1,545 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Weapon Rack Solver — User Manual</title>
+<!--[if gte mso 9]>
+<xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>100</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+  </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  @page { size: 8.5in 11in; margin: 1in; }
+  :root {
+    color-scheme: dark;
+  }
+  html {
+    background: #121418;
+  }
+  body {
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.35;
+    color: #e6e8ec;
+    background: #121418;
+  }
+  h1 {
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 24pt;
+    color: #f2f4f7;
+    border-bottom: 2pt solid #4a5568;
+    padding-bottom: 6pt;
+    margin-top: 0;
+  }
+  h2 {
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 16pt;
+    color: #f2f4f7;
+    border-bottom: 1pt solid #3a4250;
+    padding-bottom: 3pt;
+    margin-top: 22pt;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 13pt;
+    color: #d7dbe3;
+    margin-top: 16pt;
+    page-break-after: avoid;
+  }
+  h4 {
+    font-size: 11pt;
+    color: #d7dbe3;
+    margin-top: 12pt;
+    margin-bottom: 4pt;
+    page-break-after: avoid;
+  }
+  p { margin: 6pt 0; }
+  ul, ol { margin: 6pt 0 6pt 18pt; }
+  li { margin: 3pt 0; }
+  a { color: #8ec7ff; }
+  a:visited { color: #b7a6ff; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8pt 0 12pt 0;
+  }
+  th, td {
+    border: 1pt solid #4a5568;
+    padding: 5pt 8pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #1e2430;
+    color: #f2f4f7;
+    font-weight: bold;
+  }
+  td {
+    background: #181c24;
+  }
+  code, .mono {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    color: #d7e2ff;
+  }
+  pre {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 9.5pt;
+    color: #e6e8ec;
+    background: #1a1f29;
+    border: 1pt solid #3a4250;
+    padding: 8pt 10pt;
+    white-space: pre-wrap;
+  }
+  .subtitle { font-size: 12pt; color: #9aa3b2; margin-top: -6pt; }
+  .note {
+    background: #1a1f29;
+    border-left: 3pt solid #7aa2ff;
+    color: #d7dbe3;
+    padding: 6pt 10pt;
+    margin: 10pt 0;
+  }
+  .toc a { text-decoration: none; color: #e6e8ec; }
+  .toc a:hover { color: #8ec7ff; }
+  .toc li { margin: 2pt 0; }
+  .kbd {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 9.5pt;
+    border: 1pt solid #4a5568;
+    border-radius: 3pt;
+    padding: 0 4pt;
+    background: #1e2430;
+    color: #f2f4f7;
+  }
+  .footer {
+    margin-top: 28pt;
+    color: #8b93a1;
+    font-size: 10pt;
+  }
+</style>
+</head>
+<body>
+
+<h1>Weapon Rack Solver</h1>
+<p class="subtitle">User Manual</p>
+<p>This guide explains how to install, configure, and use <b>Weapon Rack Solver</b> (WRc) — a Windows desktop app that builds EverQuest weapon-rack puzzles, finds a shortest solution, and can watch your EQ log for rack codes from chat.</p>
+
+<h2>1. Table of contents</h2>
+<ol class="toc">
+  <li>What the app does</li>
+  <li>Requirements and setup</li>
+  <li>Starting the app</li>
+  <li>Main window overview</li>
+  <li>Entering a puzzle by hand</li>
+  <li>Solving and reading results</li>
+  <li>Solution Demo window</li>
+  <li>Solution Codes window</li>
+  <li>Log monitor (EQ chat)</li>
+  <li>Scan Recent</li>
+  <li>Settings</li>
+  <li>Discord webhook</li>
+  <li>Default shortcuts</li>
+  <li>Puzzle rules (quick reference)</li>
+  <li>Chat code format</li>
+  <li>Files and logs</li>
+  <li>Troubleshooting</li>
+  <li>Importing this manual into Google Docs</li>
+</ol>
+
+<h2>2. What the app does</h2>
+<p>Weapon Rack Solver helps with the EverQuest “weapon rack” style puzzle:</p>
+<ul>
+  <li>There are <b>4 racks</b>, each with <b>4 slots</b> (top to bottom).</li>
+  <li>Weapons are <b>Sword (Sw)</b>, <b>Spear (Sp)</b>, and <b>Axe (Ax)</b>.</li>
+  <li>A valid puzzle has exactly <b>4 of each weapon</b> across all racks (12 weapons total; some slots empty).</li>
+  <li>The goal is to rearrange weapons so you end with <b>one empty rack</b> and <b>three full mono racks</b> (all Swords, all Spears, all Axes — one type per rack).</li>
+  <li>You may only move the <b>bottom-most weapon</b> on a rack onto another rack, and only if that destination is empty or its current bottom weapon is the <b>same type</b> (same-type stacking).</li>
+</ul>
+<p>The app can:</p>
+<ul>
+  <li>Let you enter racks manually with mouse or keyboard.</li>
+  <li>Watch an EverQuest log file and fill racks from chat codes (for example <span class="mono">R112`3</span>).</li>
+  <li>Find a shortest move list and copy it to the clipboard.</li>
+  <li>Show a step-by-step demo animation and a codes board.</li>
+  <li>Optionally post puzzle/solve images (and a GIF) to a Discord webhook.</li>
+</ul>
+
+<h2>3. Requirements and setup</h2>
+<h3>3.1 What you need</h3>
+<ul>
+  <li>Windows 10 or 11</li>
+  <li>To <b>run</b> a pre-built binary: no extra install beyond the <span class="mono">build\wrc.exe</span> file and its settings next to the project.</li>
+  <li>To <b>build from source</b>: Visual Studio 2022 with the <b>Desktop development with C++</b> workload (the <span class="mono">cl</span> compiler and resource compiler).</li>
+</ul>
+
+<h3>3.2 Build and run (from source)</h3>
+<ol>
+  <li>Open a Command Prompt or PowerShell in the project folder (the folder that contains <span class="mono">start.bat</span> and <span class="mono">build.bat</span>).</li>
+  <li>Double-click <span class="mono">start.bat</span>, or run:
+    <pre>start.bat</pre>
+  </li>
+  <li><span class="mono">start.bat</span> calls <span class="mono">build.bat</span>, compiles the app (and runs built-in tests), then launches <span class="mono">build\wrc.exe</span>.</li>
+</ol>
+<p>You can also build without launching:</p>
+<pre>build.bat</pre>
+<p>On success you should see <span class="mono">Build OK: build\wrc.exe</span>.</p>
+
+<div class="note">
+<b>Note:</b> Settings are stored in <span class="mono">wrc_settings.ini</span> in the project root (the folder above <span class="mono">build\</span>). Window positions, hotkeys, log path, and Discord options are remembered between sessions.
+</div>
+
+<h2>4. Starting the app</h2>
+<ol>
+  <li>Run <span class="mono">start.bat</span> (build + launch) or open <span class="mono">build\wrc.exe</span> directly after a successful build.</li>
+  <li>The main window title is <b>Weapon Rack Solver</b>.</li>
+  <li>By default the window stays <b>On top</b> of other windows so you can keep it over EverQuest.</li>
+</ol>
+
+<h2>5. Main window overview</h2>
+<p>Top to bottom, the main window contains:</p>
+
+<table>
+  <tr><th>Area</th><th>What it does</th></tr>
+  <tr>
+    <td><b>Title row</b></td>
+    <td><b>On top</b> keeps the app above other windows. <b>Settings</b> opens configuration.</td>
+  </tr>
+  <tr>
+    <td><b>Shortcut hint strip</b></td>
+    <td>Shows your current keys for weapons, gap, undo, racks, and solve.</td>
+  </tr>
+  <tr>
+    <td><b>Auto options</b></td>
+    <td><b>Auto solve</b> solves as soon as the board has 4/4/4 weapons. <b>Auto demo</b> opens the demo after a solve. <b>Auto codes</b> opens the codes window after a solve.</td>
+  </tr>
+  <tr>
+    <td><b>Scan recent</b></td>
+    <td>Appears when a log path is configured. Reads the end of the EQ log for rack codes (see section 10).</td>
+  </tr>
+  <tr>
+    <td><b>Status lines</b></td>
+    <td>Left: app session log file name. Right: log-monitor status (Watching, Matched …, Scan results, and so on).</td>
+  </tr>
+  <tr>
+    <td><b>Count chips</b></td>
+    <td><b>Sw</b>, <b>Sp</b>, <b>Ax</b> show how many of each weapon are on the board (need 4/4/4 to solve). Green border = exact 4; red = more than 4.</td>
+  </tr>
+  <tr>
+    <td><b>Puzzle / Solved boards</b></td>
+    <td>Left board is the editable puzzle. Right board shows the solved layout after a successful solve (mono racks labeled).</td>
+  </tr>
+  <tr>
+    <td><b>Action buttons</b></td>
+    <td><b>Axe</b>, <b>Sword</b>, <b>Spear</b>, <b>Gap</b>, <b>Undo</b>, <b>Clear</b>, <b>Solve</b>.</td>
+  </tr>
+  <tr>
+    <td><b>Result panel</b></td>
+    <td>After a solve: move count and time, paste string, plus <b>Codes</b>, <b>Demo</b>, and <b>Copy</b>.</td>
+  </tr>
+</table>
+
+<h2>6. Entering a puzzle by hand</h2>
+<ol>
+  <li>Click a slot on the left <b>Puzzle</b> board to select it (selection highlight moves as you type or click buttons).</li>
+  <li>Place weapons with the buttons or shortcuts:
+    <ul>
+      <li><b>Sword</b> / <b>Spear</b> / <b>Axe</b> — put that weapon in the selected slot.</li>
+      <li><b>Gap</b> — mark an empty slot (shown as a dash). Gaps count as empty for solving.</li>
+      <li>After placing, the selection advances to the next slot (and next rack when a rack is full).</li>
+    </ul>
+  </li>
+  <li>Use <b>arrow keys</b> to move the selection without changing a slot.</li>
+  <li>Use rack shortcuts (<span class="kbd">1</span>–<span class="kbd">4</span> by default) to jump to the top of that rack.</li>
+  <li><b>Undo</b> clears the current slot, or steps back one slot if the current slot is already empty.</li>
+  <li><b>Clear</b> empties the entire board and resets selection to rack 1, slot 1 (top).</li>
+</ol>
+<p>Slots are ordered <b>top → bottom</b> within each rack. Rack order is 1–4 left to right.</p>
+
+<div class="note">
+<b>Tip:</b> Watch the Sw / Sp / Ax chips. Solve stays disabled until each shows <b>4/4</b>.
+</div>
+
+<h2>7. Solving and reading results</h2>
+<ol>
+  <li>When counts are ready, click <b>Solve</b> or press the Solve shortcut (default <span class="kbd">Enter</span>).</li>
+  <li>While solving, the UI shows <b>Solving - please wait...</b></li>
+  <li>On success:
+    <ul>
+      <li>The right board shows the final mono layout.</li>
+      <li>The result panel shows move count and solve time (ms or seconds).</li>
+      <li>A paste string is built, for example:
+        <pre>R2Sw&gt;R1, R3Ax&gt;R4, R1Sp&gt;R2</pre>
+        Meaning: move Sword from rack 2 to rack 1, then Axe from 3 to 4, and so on.
+      </li>
+      <li>The paste string is copied to the clipboard automatically.</li>
+      <li>If configured, Discord posting runs in the background.</li>
+    </ul>
+  </li>
+  <li>If the puzzle is already at the goal, you see <b>Already solved</b> (zero moves).</li>
+  <li>If solve fails or counts are wrong, an error message appears in red (for example incomplete weapon counts).</li>
+</ol>
+
+<h3>7.1 Result buttons</h3>
+<table>
+  <tr><th>Button</th><th>Action</th></tr>
+  <tr><td><b>Copy</b></td><td>Copy the full paste string to the clipboard again.</td></tr>
+  <tr><td><b>Demo</b></td><td>Open the animated solution demo (only when there is at least one move).</td></tr>
+  <tr><td><b>Codes</b></td><td>Open a window listing each move as a colored chip (only when there is at least one move).</td></tr>
+</table>
+
+<h3>7.2 Auto options</h3>
+<ul>
+  <li><b>Auto solve</b> — whenever the board becomes valid (4 swords, 4 spears, 4 axes), solve starts by itself. Useful with the log monitor.</li>
+  <li><b>Auto demo</b> — after a successful solve with moves, open Demo automatically.</li>
+  <li><b>Auto codes</b> — after a successful solve with moves, open Codes automatically.</li>
+</ul>
+
+<h2>8. Solution Demo window</h2>
+<p>Open with <b>Demo</b> on the result panel (or Auto demo).</p>
+<ul>
+  <li>Title: <b>Solution demo</b>.</li>
+  <li>Status line shows progress, for example <span class="mono">Move 2/7 - R1Sw&gt;R3</span>.</li>
+  <li>The board animates each move (about 0.7 seconds per step while playing).</li>
+  <li>Controls:
+    <ul>
+      <li><b>Play / Pause</b> — run or pause the animation.</li>
+      <li><b>Step</b> — advance one move.</li>
+      <li><b>Restart</b> — reset to the starting puzzle board.</li>
+      <li><b>Close</b> — close the demo window.</li>
+    </ul>
+  </li>
+</ul>
+<p>Window size and position are remembered in settings.</p>
+
+<h2>9. Solution Codes window</h2>
+<p>Open with <b>Codes</b> (or Auto codes).</p>
+<ul>
+  <li>Shows every move as a chip like <span class="mono">R2Sw&gt;R1</span>, color-tinted by weapon type.</li>
+  <li>Scroll if the list is long.</li>
+  <li>Useful for calling moves out one at a time in raid/guild chat.</li>
+</ul>
+
+<h2>10. Log monitor (EQ chat)</h2>
+<p>Instead of typing racks by hand, you can let the app read EverQuest log lines that contain rack codes.</p>
+
+<h3>10.1 One-time setup</h3>
+<ol>
+  <li>In EverQuest, enable logging so a character log file is written (typical path under your EQ install, for example
+    <span class="mono">...\Logs\eqlog_CharacterName_server.txt</span>).</li>
+  <li>In Weapon Rack Solver, open <b>Settings</b>.</li>
+  <li>Under <b>EQ log file</b>, click <b>Browse...</b> and select that log file.</li>
+  <li>Check <b>Enable log monitor</b>.</li>
+  <li>Confirm (or customize) <b>Log search identifiers</b> — defaults match common codes like <span class="mono">R1</span>…<span class="mono">R4</span> with weapon digits (see section 15).</li>
+  <li>Click <b>Save and Close</b>.</li>
+</ol>
+
+<h3>10.2 How live monitoring works</h3>
+<ul>
+  <li>When enabled, the app opens the log at the <b>end of the file</b> and only reads <b>new</b> lines (status: <b>Watching</b>).</li>
+  <li>When a line contains one or more valid rack tokens, those racks are written onto the Puzzle board.</li>
+  <li>Status updates to something like <b>Matched R212`3</b>.</li>
+  <li>If <b>Auto solve</b> is on and all four racks together make a valid 4/4/4 puzzle, a solve starts automatically.</li>
+  <li>If the log rotates or shrinks, the monitor resets and continues (status notes rotation).</li>
+</ul>
+
+<div class="note">
+<b>Important:</b> Live monitor does not re-read old history until you use <b>Scan recent</b>. It only sees lines appended after monitoring started (or after the last read position).
+</div>
+
+<h2>11. Scan Recent</h2>
+<p>When a log path is set, the main window shows <b>Scan recent</b>.</p>
+<ul>
+  <li>Reads roughly the <b>last 64 KB</b> of the log file.</li>
+  <li>Parses any matching rack tokens and applies them to the board (latest match per rack wins as lines are processed).</li>
+  <li>Status becomes <b>Scan found N match(es)</b> or <b>Scan - no matches in last 64KB</b>.</li>
+</ul>
+<p>Use this if someone already posted the racks before you turned on the monitor, or if you missed the live lines.</p>
+
+<h2>12. Settings</h2>
+<p>Open with the <b>Settings</b> button. Changes apply when you click <b>Save and Close</b>. Esc closes without saving draft edits for that session’s cancel behavior on Escape from the settings window.</p>
+
+<h3>12.1 EQ log file</h3>
+<ul>
+  <li>Path field + <b>Browse...</b></li>
+  <li><b>Enable log monitor</b> checkbox</li>
+  <li>Live status line under the controls</li>
+</ul>
+
+<h3>12.2 Log search identifiers</h3>
+<p>Hover the <b>?</b> tip for a short explanation. Configure:</p>
+<table>
+  <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
+  <tr><td>Rack 1–4 tags</td><td>R1, R2, R3, R4</td><td>Prefix the monitor looks for before four weapon characters.</td></tr>
+  <tr><td>Axe</td><td>1</td><td>Character meaning Axe</td></tr>
+  <tr><td>Sword</td><td>2</td><td>Character meaning Sword</td></tr>
+  <tr><td>Spear</td><td>3</td><td>Character meaning Spear</td></tr>
+  <tr><td>Blank</td><td>` (backtick)</td><td>Character meaning empty / gap</td></tr>
+</table>
+<p>An example token updates as you edit (for example <span class="mono">R112`3</span>). Tags must be unique; weapon characters must each be a single distinct character.</p>
+<p><b>Reset identifiers</b> restores these defaults.</p>
+
+<h3>12.3 App shortcuts</h3>
+<ol>
+  <li>Click the button next to a command (Sword, Spear, Axe, Gap, Undo, Solve, Rack 1–4).</li>
+  <li>Press the new key. Esc cancels capture.</li>
+  <li><b>Reset shortcuts</b> restores defaults (section 14).</li>
+</ol>
+
+<h3>12.4 Discord webhook…</h3>
+<p>Opens the Discord settings dialog (section 13).</p>
+
+<h2>13. Discord webhook</h2>
+<p>Optional. After each successful solve, the app can POST attachments to a Discord incoming webhook.</p>
+
+<ol>
+  <li>In Discord, create an Incoming Webhook for the channel you want.</li>
+  <li>In Settings → <b>Discord webhook...</b>, paste the webhook URL.</li>
+  <li>Choose what to send (any combination):
+    <ul>
+      <li><b>Puzzle</b> — PNG of the starting board</li>
+      <li><b>Solve</b> — PNG of the final board</li>
+      <li><b>Autosolve Video</b> — GIF animating the moves (when there are moves)</li>
+      <li><b>Codes</b> — PNG of the move codes layout</li>
+    </ul>
+  </li>
+  <li><b>Save and Close</b>.</li>
+</ol>
+<p>If the URL is empty, or all checkboxes are off, nothing is sent. Sends run on a background thread so the UI stays responsive.</p>
+
+<div class="note">
+<b>Security:</b> Treat the webhook URL like a password. Do not share it publicly. Anyone with the URL can post to that channel.
+</div>
+
+<h2>14. Default shortcuts</h2>
+<table>
+  <tr><th>Action</th><th>Default key</th></tr>
+  <tr><td>Sword</td><td><span class="kbd">S</span></td></tr>
+  <tr><td>Spear</td><td><span class="kbd">D</span></td></tr>
+  <tr><td>Axe</td><td><span class="kbd">A</span></td></tr>
+  <tr><td>Gap (empty)</td><td><span class="kbd">Space</span></td></tr>
+  <tr><td>Undo</td><td><span class="kbd">Backspace</span></td></tr>
+  <tr><td>Solve</td><td><span class="kbd">Enter</span></td></tr>
+  <tr><td>Select Rack 1</td><td><span class="kbd">1</span></td></tr>
+  <tr><td>Select Rack 2</td><td><span class="kbd">2</span></td></tr>
+  <tr><td>Select Rack 3</td><td><span class="kbd">3</span></td></tr>
+  <tr><td>Select Rack 4</td><td><span class="kbd">4</span></td></tr>
+  <tr><td>Move selection</td><td>Arrow keys</td></tr>
+</table>
+<p>Shortcuts apply when the main window has focus. Ctrl/Alt combinations are ignored for these bindings.</p>
+
+<h2>15. Puzzle rules (quick reference)</h2>
+<ul>
+  <li><b>Input validity:</b> exactly 4 Swords, 4 Spears, 4 Axes on the board (empty slots allowed).</li>
+  <li><b>Move:</b> take the lowest (bottom) weapon on a rack and place it on another rack.</li>
+  <li><b>Stacking rule:</b> destination must be empty, or its current bottom weapon must be the same type as the weapon you are moving.</li>
+  <li><b>Goal:</b> one rack empty; the other three racks each filled with four of one weapon type (Sword rack, Spear rack, Axe rack — any order of racks).</li>
+  <li><b>Output format:</b> <span class="mono">R&lt;src&gt;&lt;Sw|Sp|Ax&gt;&gt;R&lt;dst&gt;</span>, comma-separated for the full solution.</li>
+</ul>
+
+<h2>16. Chat code format</h2>
+<p>With default identifiers, a rack token is:</p>
+<pre>R&lt;n&gt;&lt;slot1&gt;&lt;slot2&gt;&lt;slot3&gt;&lt;slot4&gt;</pre>
+<p>where slots are top → bottom, and characters are:</p>
+<table>
+  <tr><th>Character</th><th>Meaning</th></tr>
+  <tr><td>2</td><td>Sword</td></tr>
+  <tr><td>3</td><td>Spear</td></tr>
+  <tr><td>1</td><td>Axe</td></tr>
+  <tr><td>`</td><td>Empty / gap</td></tr>
+</table>
+
+<h4>Examples</h4>
+<pre>R112`3
+R2````
+R2332`
+R4`2`1</pre>
+<p>Multiple racks can appear in one chat line:</p>
+<pre>R1`123,R212`3.R31`23!R4``12</pre>
+<p>The parser finds each valid <span class="mono">R#</span> + four codes token. Tokens should not be glued to letters/digits/underscores immediately before them (so accidental mid-word matches are avoided). Common punctuation after a token (comma, period, quote, bracket, bang, space) is fine.</p>
+
+<div class="note">
+If your raid uses different digits or tags, change them under Settings → Log search identifiers so they match what people actually type.
+</div>
+
+<h2>17. Files and logs</h2>
+<table>
+  <tr><th>Item</th><th>Location / notes</th></tr>
+  <tr><td>Application</td><td><span class="mono">build\wrc.exe</span></td></tr>
+  <tr><td>Settings</td><td><span class="mono">wrc_settings.ini</span> (window layout, hotkeys, log path, Discord options, auto flags)</td></tr>
+  <tr><td>Session log</td><td>Under the project’s <span class="mono">logs\</span> folder; filename shown on the main window as <span class="mono">wrc_YYYY-MM-DD_HH-MM-SS.log</span>. Records parses, solves, copies, Discord activity, and clears.</td></tr>
+  <tr><td>Build scripts</td><td><span class="mono">build.bat</span>, <span class="mono">start.bat</span></td></tr>
+  <tr><td>Example chat lines</td><td><span class="mono">Examples\</span> sample files for testing parse patterns</td></tr>
+</table>
+
+<h2>18. Troubleshooting</h2>
+<table>
+  <tr><th>Problem</th><th>What to try</th></tr>
+  <tr>
+    <td>Build fails: no compiler</td>
+    <td>Install Visual Studio 2022 with Desktop development with C++, then run <span class="mono">build.bat</span> again.</td>
+  </tr>
+  <tr>
+    <td>Solve button stays disabled / errors about counts</td>
+    <td>You need exactly four of each weapon. Check the Sw/Sp/Ax chips and fix typos or extra gaps.</td>
+  </tr>
+  <tr>
+    <td>Log monitor Idle / cannot open log</td>
+    <td>Confirm the path in Settings, that EQ logging is on, and that the file exists. Re-enable the monitor after browsing to a new path (Save and Close).</td>
+  </tr>
+  <tr>
+    <td>No matches while watching</td>
+    <td>Codes may have been posted before you started watching — click <b>Scan recent</b>. Also verify identifiers match the chat format.</td>
+  </tr>
+  <tr>
+    <td>Wrong rack filled from chat</td>
+    <td>Adjust Rack tags / weapon characters in Settings. Use Reset identifiers if unsure.</td>
+  </tr>
+  <tr>
+    <td>Clipboard copy failed</td>
+    <td>Another app may be locking the clipboard; try <b>Copy</b> again.</td>
+  </tr>
+  <tr>
+    <td>Discord nothing arrives</td>
+    <td>Check webhook URL, that at least one attachment type is checked, and that the solve succeeded. See the session log for Discord skip/fail lines.</td>
+  </tr>
+  <tr>
+    <td>Window lost behind EQ</td>
+    <td>Enable <b>On top</b> on the main window.</td>
+  </tr>
+  <tr>
+    <td>Shortcuts do nothing</td>
+    <td>Click the main Weapon Rack Solver window so it has focus. Shortcuts are not global system hotkeys.</td>
+  </tr>
+</table>
+
+<h2>19. Typical raid workflow</h2>
+<ol>
+  <li>Launch Weapon Rack Solver; leave <b>On top</b> on.</li>
+  <li>Point Settings at your EQ log; enable monitor; turn on <b>Auto solve</b> (and Auto demo/codes if you want).</li>
+  <li>When racks are called in chat, the board fills. If Auto solve is on, the solution paste is ready immediately.</li>
+  <li>Paste the move string into chat, or call moves from the Codes / Demo windows.</li>
+  <li>If you missed the call, press <b>Scan recent</b>, then Solve if Auto solve is off.</li>
+</ol>
+
+<h2>20. Importing this manual into Google Docs</h2>
+<p>This manual is provided as a Microsoft Word document (<span class="mono">.docx</span>), which Google Docs imports cleanly.</p>
+<ol>
+  <li>Open <a href="https://drive.google.com">Google Drive</a>.</li>
+  <li>Click <b>New</b> → <b>File upload</b> and choose <span class="mono">Weapon-Rack-Solver-User-Manual.docx</span>.</li>
+  <li>After upload, right-click the file → <b>Open with</b> → <b>Google Docs</b>.</li>
+  <li>Optional: use <b>File</b> → <b>Save as Google Docs</b> if you want an editable Docs-native copy (Drive may convert automatically depending on your settings).</li>
+</ol>
+<p>You can also open Google Docs first, choose <b>File</b> → <b>Open</b> → <b>Upload</b>, and select the same <span class="mono">.docx</span> file.</p>
+<p>An HTML twin of this manual is also available for reference; prefer the <span class="mono">.docx</span> for Google Docs import.</p>
+
+<p class="footer">Weapon Rack Solver (WRc) — User Manual. Generated for the WRc project.</p>
+
+</body>
+</html>

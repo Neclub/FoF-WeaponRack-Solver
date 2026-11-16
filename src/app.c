@@ -14,6 +14,7 @@
 #include <commdlg.h>
 #include <dwmapi.h>
 #include <uxtheme.h>
+#include <objbase.h>
 
 #include <ctype.h>
 #include <stdio.h>
@@ -21,10 +22,13 @@
 #include <string.h>
 #include <stdint.h>
 #include <direct.h>
+#include <time.h>
 
 #include "solver.h"
 #include "logmon.h"
 #include "wrc_res.h"
+#include "imgenc.h"
+#include "discord.h"
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
@@ -32,6 +36,9 @@
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "uxtheme.lib")
+#pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "windowscodecs.lib")
+#pragma comment(lib, "winhttp.lib")
 
 #define APP_TITLE "Weapon Rack Solver"
 #define SETTINGS_NAME "wrc_settings.ini"
@@ -65,7 +72,6 @@
 #define IDC_PATH 110
 #define IDC_BROWSE 111
 #define IDC_LOGEN 112
-#define IDC_SCAN 113
 #define IDC_STATUS 114
 #define IDC_RACK0 120
 #define IDC_AXE 130
@@ -77,6 +83,7 @@
 #define IDC_RESET_PARSE 160
 #define IDC_RESET_HK 161
 #define IDC_SAVE 162
+#define IDC_OPEN_DISCORD 163
 #define IDC_LBL_LOG 170
 #define IDC_LBL_PARSE 171
 #define IDC_LBL_HK 172
@@ -85,6 +92,13 @@
 #define IDC_LBL_RACK0 180
 #define IDC_LBL_CHAR0 184
 #define IDC_LBL_HK0 190
+#define IDC_LBL_DISCORD 210
+#define IDC_DISCORD_URL 211
+#define IDC_DISCORD_PUZZLE 212
+#define IDC_DISCORD_SOLVE 213
+#define IDC_DISCORD_VIDEO 214
+#define IDC_DISCORD_CODES 215
+#define IDC_DISCORD_SAVE 216
 
 enum {
     HIT_NONE = 0,
@@ -166,6 +180,7 @@ static HWND g_hwnd;
 static HWND g_demo_hwnd;
 static HWND g_codes_hwnd;
 static HWND g_settings_hwnd;
+static HWND g_discord_hwnd;
 static Paths g_paths;
 static CRITICAL_SECTION g_lock;
 static int g_lock_ready;
@@ -178,14 +193,24 @@ static int g_topmost = 1;
 static ToolRect g_demo_rect = {CW_USEDEFAULT, CW_USEDEFAULT, 1000, 760, 0, 0};
 static ToolRect g_codes_rect = {CW_USEDEFAULT, CW_USEDEFAULT, 720, 180, 0, 0};
 static ToolRect g_settings_rect = {CW_USEDEFAULT, CW_USEDEFAULT, 760, 520, 0, 0};
+static ToolRect g_discord_rect = {CW_USEDEFAULT, CW_USEDEFAULT, 560, 260, 0, 0};
 static int g_settings_fit;
 static int g_settings_need_w;
 static int g_settings_need_h;
+static int g_discord_fit;
+static int g_discord_need_w;
+static int g_discord_need_h;
 static int g_codes_scroll;
 static int g_codes_content_h;
 static int g_auto_solve = 0;
 static int g_auto_demo = 0;
 static int g_auto_codes = 0;
+static char g_discord_url[DISCORD_URL_CAP];
+static int g_discord_puzzle = 1;
+static int g_discord_solve = 1;
+static int g_discord_video = 1;
+static int g_discord_codes = 1;
+static volatile LONG g_discord_busy = 0;
 static UINT g_hotkeys[HK_COUNT];
 static UINT g_hk_draft[HK_COUNT];
 static int g_hk_capture = -1;
@@ -265,8 +290,11 @@ static void pull_matches(void);
 static void apply_topmost(void);
 static void start_solve(int automatic);
 static void open_settings(void);
+static void open_discord_settings(void);
 static void open_demo(void);
 static void open_codes(void);
+static void queue_discord_after_solve(void);
+static LRESULT CALLBACK DiscordSettingsProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 static int copy_solution(int automatic);
 static void set_error(const char *msg);
 static void layout_main(HWND hwnd, HDC hdc);
@@ -275,6 +303,14 @@ static void layout_settings(HWND hwnd);
 static void apply_settings_fonts(void);
 static void refresh_hk_buttons(void);
 static void update_example(HWND hwnd);
+static void ensure_fonts(HWND hwnd);
+static COLORREF blend_color(COLORREF a, COLORREF b, int t);
+static RECT rect_xywh(int x, int y, int w, int h);
+static void fill_round(HDC hdc, RECT r, int rad, COLORREF fill, COLORREF border);
+static void draw_text(HDC hdc, RECT r, const char *text, COLORREF color, HFONT font, UINT fmt);
+static int text_span(HDC hdc, HFONT font, const char *text);
+static void draw_racks(HDC hdc, HWND hwnd, int x, int y, int width, int slot_h, const uint8_t board[4][4],
+                       int interactive, int highlight);
 
 static void copy_str(char *dst, size_t cap, const char *src) {
     if (!dst || cap == 0) return;
@@ -500,14 +536,25 @@ static void load_settings(void) {
         }
     }
     copy_str(g_eq_status, sizeof(g_eq_status), "Idle");
+    GetPrivateProfileStringA("discord", "url", "", g_discord_url, sizeof(g_discord_url), g_paths.settings);
+    GetPrivateProfileStringA("discord", "puzzle", "1", buf, sizeof(buf), g_paths.settings);
+    g_discord_puzzle = atoi(buf) ? 1 : 0;
+    GetPrivateProfileStringA("discord", "solve", "1", buf, sizeof(buf), g_paths.settings);
+    g_discord_solve = atoi(buf) ? 1 : 0;
+    GetPrivateProfileStringA("discord", "video", "1", buf, sizeof(buf), g_paths.settings);
+    g_discord_video = atoi(buf) ? 1 : 0;
+    GetPrivateProfileStringA("discord", "codes", "1", buf, sizeof(buf), g_paths.settings);
+    g_discord_codes = atoi(buf) ? 1 : 0;
     load_tool_rect("demo");
     load_tool_rect("codes");
     load_tool_rect("settings");
+    load_tool_rect("discord");
 }
 
 static ToolRect *tool_rect(const char *section) {
     if (section && strcmp(section, "settings") == 0) return &g_settings_rect;
     if (section && strcmp(section, "codes") == 0) return &g_codes_rect;
+    if (section && strcmp(section, "discord") == 0) return &g_discord_rect;
     return &g_demo_rect;
 }
 
@@ -517,6 +564,9 @@ static void placement_floor(const char *section, int *w, int *h) {
     if (section && strcmp(section, "codes") == 0) {
         minw = 160;
         minh = 100;
+    } else if (section && strcmp(section, "discord") == 0) {
+        minw = 420;
+        minh = 200;
     }
     if (*w < minw) *w = minw;
     if (*h < minh) *h = minh;
@@ -619,6 +669,11 @@ static void save_settings(HWND hwnd) {
         vk_to_name(g_hotkeys[i], name, sizeof(name));
         WritePrivateProfileStringA("hotkeys", hk_ini_key((HotkeyId)i), name, g_paths.settings);
     }
+    WritePrivateProfileStringA("discord", "url", g_discord_url, g_paths.settings);
+    WritePrivateProfileStringA("discord", "puzzle", g_discord_puzzle ? "1" : "0", g_paths.settings);
+    WritePrivateProfileStringA("discord", "solve", g_discord_solve ? "1" : "0", g_paths.settings);
+    WritePrivateProfileStringA("discord", "video", g_discord_video ? "1" : "0", g_paths.settings);
+    WritePrivateProfileStringA("discord", "codes", g_discord_codes ? "1" : "0", g_paths.settings);
     LeaveCriticalSection(&g_lock);
 }
 
@@ -906,13 +961,14 @@ static void eq_log_stop_monitor(void) {
 }
 
 static void push_zorder(void) {
-    HWND list[4];
+    HWND list[5];
     HWND z = g_topmost ? HWND_TOPMOST : HWND_NOTOPMOST;
     list[0] = g_hwnd;
     list[1] = g_demo_hwnd;
     list[2] = g_codes_hwnd;
     list[3] = g_settings_hwnd;
-    for (int i = 0; i < 4; i++) {
+    list[4] = g_discord_hwnd;
+    for (int i = 0; i < 5; i++) {
         if (list[i] && IsWindow(list[i]))
             SetWindowPos(list[i], z, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
@@ -1100,6 +1156,447 @@ static int demo_step(void) {
     return g_demo_playing && g_demo_index < g_demo_count;
 }
 
+typedef struct {
+    HDC hdc;
+    HBITMAP bmp;
+    HBITMAP old;
+    uint8_t *bits;
+    int w;
+    int h;
+    int stride;
+} Offscreen;
+
+typedef struct {
+    char url[DISCORD_URL_CAP];
+    char content[DISCORD_CONTENT_CAP];
+    DiscordFile files[DISCORD_MAX_FILES];
+    uint8_t *owned[DISCORD_MAX_FILES];
+    int file_count;
+} DiscordJob;
+
+static int offscreen_begin(Offscreen *o, int w, int h) {
+    BITMAPINFO bi;
+    HDC screen;
+    if (!o || w <= 0 || h <= 0) return 0;
+    memset(o, 0, sizeof(*o));
+    memset(&bi, 0, sizeof(bi));
+    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = w;
+    bi.bmiHeader.biHeight = -h;
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = BI_RGB;
+    screen = GetDC(NULL);
+    o->hdc = CreateCompatibleDC(screen);
+    ReleaseDC(NULL, screen);
+    if (!o->hdc) return 0;
+    o->bmp = CreateDIBSection(o->hdc, &bi, DIB_RGB_COLORS, (void **)&o->bits, NULL, 0);
+    if (!o->bmp || !o->bits) {
+        if (o->bmp) DeleteObject(o->bmp);
+        DeleteDC(o->hdc);
+        memset(o, 0, sizeof(*o));
+        return 0;
+    }
+    o->old = (HBITMAP)SelectObject(o->hdc, o->bmp);
+    o->w = w;
+    o->h = h;
+    o->stride = w * 4;
+    {
+        RECT rc = {0, 0, w, h};
+        FillRect(o->hdc, &rc, g_br_bg);
+    }
+    return 1;
+}
+
+static void offscreen_end(Offscreen *o) {
+    if (!o) return;
+    if (o->hdc && o->old) SelectObject(o->hdc, o->old);
+    if (o->bmp) DeleteObject(o->bmp);
+    if (o->hdc) DeleteDC(o->hdc);
+    memset(o, 0, sizeof(*o));
+}
+
+static void force_opaque_alpha(uint8_t *bits, int w, int h, int stride) {
+    int y, x;
+    if (!bits || w <= 0 || h <= 0) return;
+    for (y = 0; y < h; y++) {
+        uint8_t *row = bits + (size_t)y * (size_t)stride;
+        for (x = 0; x < w; x++) row[x * 4 + 3] = 0xff;
+    }
+}
+
+static int encode_offscreen_png(Offscreen *o, uint8_t **out, size_t *out_len) {
+    if (!o || !o->bits) return 0;
+    /* GDI BI_RGB DIBs leave alpha at 0; Discord rejects fully-transparent PNGs. */
+    force_opaque_alpha(o->bits, o->w, o->h, o->stride);
+    return imgenc_png_bgra(o->bits, o->w, o->h, o->stride, 1, out, out_len);
+}
+
+static int render_board_png(const uint8_t board[4][4], const char *title, int highlight, uint8_t **out,
+                            size_t *out_len) {
+    Offscreen o;
+    int pad, width, slot_h, racks_h, title_h;
+    int saved_draw;
+    RECT title_r;
+    if (!board || !out || !out_len) return 0;
+    ensure_fonts(g_hwnd);
+    pad = S(16);
+    width = S(640);
+    slot_h = S(50);
+    title_h = S(28);
+    racks_h = S(22) + S(5) + slot_h * 4 + S(6) * 3 + S(5);
+    if (!offscreen_begin(&o, width + pad * 2, title_h + racks_h + pad * 2)) return 0;
+    saved_draw = g_draw;
+    g_draw = 1;
+    title_r = rect_xywh(pad, pad, width, title_h);
+    draw_text(o.hdc, title_r, title ? title : "", COL_TEXT, g_font_title, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    draw_racks(o.hdc, NULL, pad, pad + title_h, width, slot_h, board, 0, highlight);
+    g_draw = saved_draw;
+    if (!encode_offscreen_png(&o, out, out_len)) {
+        offscreen_end(&o);
+        return 0;
+    }
+    offscreen_end(&o);
+    return 1;
+}
+
+static int render_codes_png(const WrSolveResult *result, uint8_t **out, size_t *out_len) {
+    Offscreen o;
+    int pad, gap, width, row_h, header, x, row_top, chip_h, count, total_h;
+    int saved_draw;
+    if (!result || !out || !out_len) return 0;
+    ensure_fonts(g_hwnd);
+    pad = S(14);
+    gap = S(8);
+    row_h = S(32);
+    chip_h = S(34);
+    width = S(520);
+    count = result->move_count;
+    if (count < 0) count = 0;
+    if (count > WR_MAX_MOVES) count = WR_MAX_MOVES;
+    header = pad + row_h + S(10);
+    /* Estimate rows */
+    {
+        int rows = 1;
+        int cx = pad;
+        HDC measure = GetDC(NULL);
+        ensure_fonts(g_hwnd);
+        for (int i = 0; i < count; i++) {
+            char code[24];
+            int tw, cw;
+            snprintf(code, sizeof(code), "R%d%s>R%d", result->moves[i].src, wr_code_abbrev(result->moves[i].code),
+                     result->moves[i].dst);
+            tw = text_span(measure, g_font_bold, code);
+            cw = tw + S(18);
+            if (cw < S(92)) cw = S(92);
+            if (cw > width) cw = width;
+            if (cx > pad && cx + cw > pad + width) {
+                cx = pad;
+                rows++;
+            }
+            cx += cw + gap;
+        }
+        ReleaseDC(NULL, measure);
+        if (count == 0) rows = 1;
+        total_h = header + rows * (chip_h + gap) + pad;
+    }
+    if (!offscreen_begin(&o, width + pad * 2, total_h)) return 0;
+    saved_draw = g_draw;
+    g_draw = 1;
+    {
+        RECT title = rect_xywh(pad, pad, width, row_h);
+        draw_text(o.hdc, title, "Solution codes", COL_TEXT, g_font_title,
+                  DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    }
+    row_top = header;
+    x = pad;
+    if (count == 0) {
+        RECT empty = rect_xywh(pad, row_top, width, chip_h);
+        draw_text(o.hdc, empty, "No moves", COL_MUTED, g_font, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    } else {
+        for (int i = 0; i < count; i++) {
+            WrMove move = result->moves[i];
+            char code[24];
+            int tw, cw;
+            RECT chip;
+            COLORREF accent = COL_BORDER;
+            snprintf(code, sizeof(code), "R%d%s>R%d", move.src, wr_code_abbrev(move.code), move.dst);
+            tw = text_span(o.hdc, g_font_bold, code);
+            cw = tw + S(18);
+            if (cw < S(92)) cw = S(92);
+            if (cw > width) cw = width;
+            if (x > pad && x + cw > pad + width) {
+                x = pad;
+                row_top += chip_h + gap;
+            }
+            if (move.code == 1) accent = COL_SW;
+            else if (move.code == 2) accent = COL_SP;
+            else if (move.code == 3) accent = COL_AX;
+            chip = rect_xywh(x, row_top, cw, chip_h);
+            fill_round(o.hdc, chip, S(8), blend_color(COL_PANEL2, accent, 70), blend_color(COL_BORDER, accent, 170));
+            draw_text(o.hdc, chip, code, COL_TEXT, g_font_bold, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            x += cw + gap;
+        }
+    }
+    g_draw = saved_draw;
+    if (!encode_offscreen_png(&o, out, out_len)) {
+        offscreen_end(&o);
+        return 0;
+    }
+    offscreen_end(&o);
+    return 1;
+}
+
+static int apply_move_local(uint8_t board[4][4], WrMove m, int *from_r, int *from_s, int *to_r, int *to_s) {
+    int src = m.src - 1;
+    int dst = m.dst - 1;
+    int from_i, to_i;
+    if (src < 0 || src >= 4 || dst < 0 || dst >= 4) return 0;
+    from_i = bottom_index(board[src]);
+    to_i = place_index(board[dst]);
+    if (from_i < 0 || to_i < 0 || board[src][from_i] != (uint8_t)m.code) return 0;
+    board[src][from_i] = 0;
+    board[dst][to_i] = (uint8_t)m.code;
+    *from_r = src;
+    *from_s = from_i;
+    *to_r = dst;
+    *to_s = to_i;
+    return 1;
+}
+
+static int render_demo_gif(const uint8_t start[4][4], const WrMove *moves, int move_count, uint8_t **out,
+                           size_t *out_len) {
+    Offscreen o;
+    uint8_t board[4][4];
+    uint8_t **frames = NULL;
+    int frame_count;
+    int pad, width, slot_h, racks_h, title_h, frame_bytes;
+    int saved_draw, saved_hl, saved_fr, saved_fs, saved_tr, saved_ts;
+    int i, ok = 0;
+    int delay_cs;
+
+    if (!start || !out || !out_len) return 0;
+    if (move_count < 0) move_count = 0;
+    if (move_count > WR_MAX_MOVES) move_count = WR_MAX_MOVES;
+    frame_count = move_count + 1;
+    ensure_fonts(g_hwnd);
+    pad = S(16);
+    width = S(640);
+    slot_h = S(50);
+    title_h = S(28);
+    racks_h = S(22) + S(5) + slot_h * 4 + S(6) * 3 + S(5);
+    if (!offscreen_begin(&o, width + pad * 2, title_h + racks_h + pad * 2)) return 0;
+    frame_bytes = o.stride * o.h;
+    frames = (uint8_t **)calloc((size_t)frame_count, sizeof(uint8_t *));
+    if (!frames) {
+        offscreen_end(&o);
+        return 0;
+    }
+    for (i = 0; i < frame_count; i++) {
+        frames[i] = (uint8_t *)malloc((size_t)frame_bytes);
+        if (!frames[i]) goto done;
+    }
+
+    saved_draw = g_draw;
+    saved_hl = g_demo_hl;
+    saved_fr = g_demo_from_r;
+    saved_fs = g_demo_from_s;
+    saved_tr = g_demo_to_r;
+    saved_ts = g_demo_to_s;
+    g_draw = 1;
+    memcpy(board, start, sizeof(board));
+    g_demo_hl = 0;
+    {
+        int made = 0;
+        for (i = 0; i < frame_count; i++) {
+            RECT title_r;
+            RECT rc = {0, 0, o.w, o.h};
+            FillRect(o.hdc, &rc, g_br_bg);
+            title_r = rect_xywh(pad, pad, width, title_h);
+            draw_text(o.hdc, title_r, "Autosolve", COL_TEXT, g_font_title, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+            draw_racks(o.hdc, NULL, pad, pad + title_h, width, slot_h, board, 0, 0);
+            force_opaque_alpha(o.bits, o.w, o.h, o.stride);
+            memcpy(frames[i], o.bits, (size_t)frame_bytes);
+            made = i + 1;
+            if (i < move_count) {
+                int fr, fs, tr, ts;
+                if (!apply_move_local(board, moves[i], &fr, &fs, &tr, &ts)) break;
+                g_demo_from_r = fr;
+                g_demo_from_s = fs;
+                g_demo_to_r = tr;
+                g_demo_to_s = ts;
+                g_demo_hl = 1;
+            }
+        }
+        frame_count = made;
+    }
+    g_draw = saved_draw;
+    g_demo_hl = saved_hl;
+    g_demo_from_r = saved_fr;
+    g_demo_from_s = saved_fs;
+    g_demo_to_r = saved_tr;
+    g_demo_to_s = saved_ts;
+
+    delay_cs = DEMO_STEP_MS / 10;
+    if (delay_cs < 1) delay_cs = 1;
+    if (frame_count <= 0) goto done;
+    ok = imgenc_gif_bgra((const uint8_t *const *)frames, frame_count, o.w, o.h, o.stride, delay_cs, out, out_len);
+
+done:
+    if (frames) {
+        for (i = 0; i < frame_count; i++) free(frames[i]);
+        free(frames);
+    }
+    offscreen_end(&o);
+    return ok;
+}
+
+static void discord_job_free(DiscordJob *job) {
+    if (!job) return;
+    for (int i = 0; i < job->file_count; i++) {
+        imgenc_free(job->owned[i]);
+        job->owned[i] = NULL;
+        job->files[i].data = NULL;
+        job->files[i].len = 0;
+    }
+    free(job);
+}
+
+static DWORD WINAPI discord_thread(LPVOID arg) {
+    DiscordJob *job = (DiscordJob *)arg;
+    char err[DISCORD_ERR_CAP];
+    int ok;
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    ok = discord_webhook_send(job->url, job->content, job->files, job->file_count, err, sizeof(err));
+    if (SUCCEEDED(hr)) CoUninitialize();
+    if (ok)
+        log_write("discord", "sent");
+    else {
+        char detail[320];
+        snprintf(detail, sizeof(detail), "failed: %s", err[0] ? err : "unknown");
+        log_write("discord", detail);
+    }
+    discord_job_free(job);
+    InterlockedExchange(&g_discord_busy, 0);
+    return 0;
+}
+
+static int discord_job_add(DiscordJob *job, const char *filename, uint8_t *data, size_t len) {
+    DiscordFile *f;
+    if (!job || !filename || !data || !len) {
+        imgenc_free(data);
+        return 0;
+    }
+    if (job->file_count >= DISCORD_MAX_FILES) {
+        imgenc_free(data);
+        return 0;
+    }
+    f = &job->files[job->file_count];
+    snprintf(f->filename, sizeof(f->filename), "%s", filename);
+    f->data = data;
+    f->len = len;
+    job->owned[job->file_count] = data;
+    job->file_count++;
+    return 1;
+}
+
+static void queue_discord_after_solve(void) {
+    DiscordJob *job;
+    HANDLE thread;
+    SYSTEMTIME st;
+    uint8_t *png = NULL;
+    size_t png_len = 0;
+    char url[DISCORD_URL_CAP];
+    int want_puzzle, want_solve, want_video, want_codes;
+    uint8_t snap[4][4];
+    WrSolveResult result;
+    WrMove moves[WR_MAX_MOVES];
+    int move_count;
+
+    EnterCriticalSection(&g_lock);
+    copy_str(url, sizeof(url), g_discord_url);
+    want_puzzle = g_discord_puzzle;
+    want_solve = g_discord_solve;
+    want_video = g_discord_video;
+    want_codes = g_discord_codes;
+    LeaveCriticalSection(&g_lock);
+
+    if (!url[0]) return;
+    if (!want_puzzle && !want_solve && !want_video && !want_codes) return;
+    if (!g_has_result) return;
+    if (InterlockedCompareExchange(&g_discord_busy, 1, 0) != 0) {
+        log_write("discord", "skipped: send already in progress");
+        return;
+    }
+
+    memcpy(snap, g_snap, sizeof(snap));
+    result = g_result;
+    move_count = g_demo_count;
+    if (move_count < 0) move_count = 0;
+    if (move_count > WR_MAX_MOVES) move_count = WR_MAX_MOVES;
+    if (move_count > 0) memcpy(moves, g_demo_moves, sizeof(WrMove) * (size_t)move_count);
+
+    job = (DiscordJob *)calloc(1, sizeof(DiscordJob));
+    if (!job) {
+        InterlockedExchange(&g_discord_busy, 0);
+        log_write("discord", "failed: out of memory");
+        return;
+    }
+    copy_str(job->url, sizeof(job->url), url);
+    GetLocalTime(&st);
+    snprintf(job->content, sizeof(job->content), "Weapon Rack Solver\n%04d-%02d-%02d %02d:%02d:%02d", st.wYear,
+             st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+
+    if (want_puzzle) {
+        png = NULL;
+        png_len = 0;
+        if (render_board_png(snap, "Puzzle", 0, &png, &png_len))
+            discord_job_add(job, "puzzle.png", png, png_len);
+        else
+            log_write("discord", "puzzle render failed");
+    }
+    if (want_solve) {
+        png = NULL;
+        png_len = 0;
+        if (render_board_png(result.final_board, "Solved", 1, &png, &png_len))
+            discord_job_add(job, "solve.png", png, png_len);
+        else
+            log_write("discord", "solve render failed");
+    }
+    if (want_video && move_count > 0) {
+        png = NULL;
+        png_len = 0;
+        if (render_demo_gif(snap, moves, move_count, &png, &png_len))
+            discord_job_add(job, "autosolve.gif", png, png_len);
+        else
+            log_write("discord", "autosolve gif failed");
+    }
+    if (want_codes) {
+        png = NULL;
+        png_len = 0;
+        if (render_codes_png(&result, &png, &png_len))
+            discord_job_add(job, "codes.png", png, png_len);
+        else
+            log_write("discord", "codes render failed");
+    }
+
+    if (job->file_count <= 0) {
+        discord_job_free(job);
+        InterlockedExchange(&g_discord_busy, 0);
+        log_write("discord", "skipped: nothing to send");
+        return;
+    }
+
+    thread = CreateThread(NULL, 0, discord_thread, job, 0, NULL);
+    if (!thread) {
+        discord_job_free(job);
+        InterlockedExchange(&g_discord_busy, 0);
+        log_write("discord", "failed: could not start send thread");
+        return;
+    }
+    CloseHandle(thread);
+}
+
 static void apply_solve_result(SolveJob *job) {
     g_solving = 0;
     if (!job) return;
@@ -1130,6 +1627,7 @@ static void apply_solve_result(SolveJob *job) {
             g_codes_scroll = 0;
             InvalidateRect(g_codes_hwnd, NULL, FALSE);
         }
+        queue_discord_after_solve();
     }
     free(job);
     if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
@@ -2523,6 +3021,29 @@ static void fill_settings_form(HWND hwnd) {
     refresh_settings_status(hwnd);
 }
 
+static void fill_discord_form(HWND hwnd) {
+    SetWindowTextA(GetDlgItem(hwnd, IDC_DISCORD_URL), g_discord_url);
+    SendMessageA(GetDlgItem(hwnd, IDC_DISCORD_PUZZLE), BM_SETCHECK, g_discord_puzzle ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(GetDlgItem(hwnd, IDC_DISCORD_SOLVE), BM_SETCHECK, g_discord_solve ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(GetDlgItem(hwnd, IDC_DISCORD_VIDEO), BM_SETCHECK, g_discord_video ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(GetDlgItem(hwnd, IDC_DISCORD_CODES), BM_SETCHECK, g_discord_codes ? BST_CHECKED : BST_UNCHECKED, 0);
+}
+
+static void commit_discord_settings(HWND hwnd) {
+    char discord_url[DISCORD_URL_CAP];
+    GetWindowTextA(GetDlgItem(hwnd, IDC_DISCORD_URL), discord_url, DISCORD_URL_CAP);
+    trim_inplace(discord_url);
+    EnterCriticalSection(&g_lock);
+    copy_str(g_discord_url, sizeof(g_discord_url), discord_url);
+    g_discord_puzzle = SendMessageA(GetDlgItem(hwnd, IDC_DISCORD_PUZZLE), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    g_discord_solve = SendMessageA(GetDlgItem(hwnd, IDC_DISCORD_SOLVE), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    g_discord_video = SendMessageA(GetDlgItem(hwnd, IDC_DISCORD_VIDEO), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    g_discord_codes = SendMessageA(GetDlgItem(hwnd, IDC_DISCORD_CODES), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    LeaveCriticalSection(&g_lock);
+    save_settings(g_hwnd);
+    log_write("discord_settings", "updated");
+}
+
 static void show_settings_error(HWND hwnd, const char *msg) {
     SetWindowTextA(GetDlgItem(hwnd, IDC_ERR), msg ? msg : "");
 }
@@ -2664,7 +3185,7 @@ static void paint_settings_control(HWND ctl, HDC hdc) {
         label.left = mark.right + S(8);
         draw_text(hdc, label, text, COL_TEXT, g_font, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     } else {
-        int primary = id == IDC_SAVE;
+        int primary = id == IDC_SAVE || id == IDC_DISCORD_SAVE;
         int capture = id >= IDC_HK0 && id < IDC_HK0 + HK_COUNT && g_hk_capture == id - IDC_HK0;
         COLORREF fill = primary ? RGB(58, 99, 224) : COL_PANEL;
         COLORREF border = primary ? RGB(107, 143, 255) : COL_BORDER;
@@ -2763,22 +3284,39 @@ static void add_settings_tip(HWND parent, int id, const char *text) {
     SendMessageA(g_settings_tip, TTM_ADDTOOLA, 0, (LPARAM)&ti);
 }
 
-static void apply_settings_fonts(void) {
-    static const int bold_ids[] = {IDC_LBL_LOG, IDC_LBL_PARSE, IDC_LBL_HK};
+static void apply_discord_fonts(void) {
     HWND child;
-    int i;
-    if (!g_settings_hwnd || !g_font) return;
-    child = GetWindow(g_settings_hwnd, GW_CHILD);
+    if (!g_discord_hwnd || !g_font) return;
+    child = GetWindow(g_discord_hwnd, GW_CHILD);
     while (child) {
         SendMessageA(child, WM_SETFONT, (WPARAM)g_font, TRUE);
         child = GetWindow(child, GW_HWNDNEXT);
     }
-    for (i = 0; i < 3; i++) {
-        HWND heading = GetDlgItem(g_settings_hwnd, bold_ids[i]);
-        if (heading && g_font_bold) SendMessageA(heading, WM_SETFONT, (WPARAM)g_font_bold, TRUE);
+    if (g_font_bold) {
+        HWND heading = GetDlgItem(g_discord_hwnd, IDC_LBL_DISCORD);
+        if (heading) SendMessageA(heading, WM_SETFONT, (WPARAM)g_font_bold, TRUE);
     }
-    if (g_settings_tip && g_font) SendMessageA(g_settings_tip, WM_SETFONT, (WPARAM)g_font, TRUE);
-    InvalidateRect(g_settings_hwnd, NULL, TRUE);
+    InvalidateRect(g_discord_hwnd, NULL, TRUE);
+}
+
+static void apply_settings_fonts(void) {
+    static const int bold_ids[] = {IDC_LBL_LOG, IDC_LBL_PARSE, IDC_LBL_HK};
+    HWND child;
+    int i;
+    if (g_settings_hwnd && g_font) {
+        child = GetWindow(g_settings_hwnd, GW_CHILD);
+        while (child) {
+            SendMessageA(child, WM_SETFONT, (WPARAM)g_font, TRUE);
+            child = GetWindow(child, GW_HWNDNEXT);
+        }
+        for (i = 0; i < 3; i++) {
+            HWND heading = GetDlgItem(g_settings_hwnd, bold_ids[i]);
+            if (heading && g_font_bold) SendMessageA(heading, WM_SETFONT, (WPARAM)g_font_bold, TRUE);
+        }
+        if (g_settings_tip && g_font) SendMessageA(g_settings_tip, WM_SETFONT, (WPARAM)g_font, TRUE);
+        InvalidateRect(g_settings_hwnd, NULL, TRUE);
+    }
+    apply_discord_fonts();
 }
 
 static void layout_settings(HWND hwnd) {
@@ -2812,10 +3350,8 @@ static void layout_settings(HWND hwnd) {
     left_w = path_w + path_gap + browse_w;
     {
         int ids = col_w * 4 + gap * 3;
-        int scan = S(210) + S(8) + S(120);
         int example = text_px(hwnd, g_font, "Example: R112`3    R212`3    R312`3    R412`3");
         if (ids > left_w) left_w = ids;
-        if (scan > left_w) left_w = scan;
         if (example > left_w) left_w = example;
     }
     btn_w = S(108);
@@ -2832,7 +3368,6 @@ static void layout_settings(HWND hwnd) {
     move_ctl(hwnd, IDC_BROWSE, x + path_w + path_gap, y, browse_w, row);
     y += row + gap;
     move_ctl(hwnd, IDC_LOGEN, x, y, S(210), row);
-    move_ctl(hwnd, IDC_SCAN, x + S(218), y, S(120), row);
     y += row + S(2);
     move_ctl(hwnd, IDC_STATUS, x, y, left_w, label_h);
     y += label_h + gap;
@@ -2878,7 +3413,8 @@ static void layout_settings(HWND hwnd) {
     }
     hk_bottom = y;
     natural = (left_bottom > hk_bottom ? left_bottom : hk_bottom) + gap;
-    by = natural;
+    move_ctl(hwnd, IDC_OPEN_DISCORD, pad, natural, S(160), row);
+    by = natural + row + S(8);
     {
         int limit = rc.bottom - pad - row;
         if (by > limit) by = limit;
@@ -2890,7 +3426,7 @@ static void layout_settings(HWND hwnd) {
         RECT wr;
         int extra_w, extra_h, need_w, need_h;
         need_w = content_right + pad;
-        need_h = natural + row + pad;
+        need_h = by + row + pad;
         GetWindowRect(hwnd, &wr);
         extra_w = (wr.right - wr.left) - rc.right;
         extra_h = (wr.bottom - wr.top) - rc.bottom;
@@ -2916,7 +3452,6 @@ static void create_settings_controls(HWND hwnd) {
     SendMessageA(edit, EM_SETLIMITTEXT, MAX_PATH - 1, 0);
     make_ctl(hwnd, "BUTTON", "Browse...", BS_PUSHBUTTON | WS_TABSTOP, 0, IDC_BROWSE);
     make_ctl(hwnd, "BUTTON", "Enable log monitor", BS_AUTOCHECKBOX | WS_TABSTOP, 0, IDC_LOGEN);
-    make_ctl(hwnd, "BUTTON", "Scan recent", BS_PUSHBUTTON | WS_TABSTOP, 0, IDC_SCAN);
     make_ctl(hwnd, "STATIC", "", SS_LEFT | SS_NOPREFIX, 0, IDC_STATUS);
     make_ctl(hwnd, "STATIC", "Log search identifiers", SS_LEFT | SS_NOPREFIX | SS_NOTIFY, 0, IDC_LBL_PARSE);
     make_ctl(hwnd, "BUTTON", "?", BS_PUSHBUTTON, 0, IDC_TIP_PARSE);
@@ -2941,6 +3476,7 @@ static void create_settings_controls(HWND hwnd) {
     }
     make_ctl(hwnd, "BUTTON", "Reset identifiers", BS_PUSHBUTTON | WS_TABSTOP, 0, IDC_RESET_PARSE);
     make_ctl(hwnd, "BUTTON", "Reset shortcuts", BS_PUSHBUTTON | WS_TABSTOP, 0, IDC_RESET_HK);
+    make_ctl(hwnd, "BUTTON", "Discord webhook...", BS_PUSHBUTTON | WS_TABSTOP, 0, IDC_OPEN_DISCORD);
     make_ctl(hwnd, "BUTTON", "Save and Close", BS_DEFPUSHBUTTON | WS_TABSTOP, 0, IDC_SAVE);
     {
         HWND child = GetWindow(hwnd, GW_CHILD);
@@ -3024,18 +3560,6 @@ static LRESULT CALLBACK SettingsProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             browse_log(hwnd);
             return 0;
         }
-        if (code == BN_CLICKED && id == IDC_SCAN) {
-            char path[MAX_PATH];
-            char status[128];
-            GetWindowTextA(GetDlgItem(hwnd, IDC_PATH), path, MAX_PATH);
-            trim_inplace(path);
-            show_settings_error(hwnd, "");
-            if (!scan_file(path, status, sizeof(status)))
-                show_settings_error(hwnd, status);
-            refresh_settings_status(hwnd);
-            pull_matches();
-            return 0;
-        }
         if (code == BN_CLICKED && id == IDC_RESET_PARSE) {
             LmParseConfig defaults;
             lm_config_defaults(&defaults);
@@ -3046,6 +3570,10 @@ static LRESULT CALLBACK SettingsProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             hotkeys_set_defaults(g_hk_draft);
             g_hk_capture = -1;
             refresh_hk_buttons();
+            return 0;
+        }
+        if (code == BN_CLICKED && id == IDC_OPEN_DISCORD) {
+            open_discord_settings();
             return 0;
         }
         if (code == BN_CLICKED && id == IDC_SAVE) {
@@ -3163,6 +3691,176 @@ static void open_demo(void) {
     if (g_demo_hwnd) InvalidateRect(g_demo_hwnd, NULL, FALSE);
     snprintf(detail, sizeof(detail), "opened; moves=%d", g_demo_count);
     log_write("demo", detail);
+}
+
+static void layout_discord_settings(HWND hwnd) {
+    RECT rc;
+    int pad, gap, row, label_h, y, by, content_w;
+    int checks[4] = {IDC_DISCORD_PUZZLE, IDC_DISCORD_SOLVE, IDC_DISCORD_VIDEO, IDC_DISCORD_CODES};
+    const char *check_labels[4] = {"Puzzle", "Solve", "Autosolve Video", "Codes"};
+    int cx, check_w;
+    GetClientRect(hwnd, &rc);
+    ensure_fonts(hwnd);
+    pad = S(16);
+    gap = S(10);
+    row = S(26);
+    label_h = S(18);
+    content_w = text_px(hwnd, g_font, "https://discord.com/api/webhooks/000000000000000000/xxxxxxxx") + S(24);
+    if (content_w < S(420)) content_w = S(420);
+    y = pad;
+    move_ctl(hwnd, IDC_LBL_DISCORD, pad, y, content_w, label_h);
+    y += label_h + S(2);
+    move_ctl(hwnd, IDC_DISCORD_URL, pad, y, content_w, row);
+    y += row + S(8);
+    cx = pad;
+    for (int i = 0; i < 4; i++) {
+        check_w = S(16) + S(8) + text_px(hwnd, g_font, check_labels[i]) + S(12);
+        if (check_w < S(80)) check_w = S(80);
+        if (cx + check_w > pad + content_w && i > 0) {
+            cx = pad;
+            y += row + S(4);
+        }
+        move_ctl(hwnd, checks[i], cx, y, check_w, row);
+        cx += check_w + S(8);
+    }
+    y += row + gap;
+    by = y;
+    {
+        int limit = rc.bottom - pad - row;
+        if (by > limit) by = limit;
+    }
+    move_ctl(hwnd, IDC_DISCORD_SAVE, pad + content_w - S(150), by, S(150), row);
+    {
+        RECT wr;
+        int extra_w, extra_h, need_w, need_h;
+        need_w = content_w + pad * 2;
+        need_h = by + row + pad;
+        GetWindowRect(hwnd, &wr);
+        extra_w = (wr.right - wr.left) - rc.right;
+        extra_h = (wr.bottom - wr.top) - rc.bottom;
+        if (extra_w < 0) extra_w = 0;
+        if (extra_h < 0) extra_h = 0;
+        g_discord_need_w = need_w + extra_w;
+        g_discord_need_h = need_h + extra_h;
+        if (g_discord_fit) {
+            g_discord_fit = 0;
+            if (rc.right != need_w || rc.bottom != need_h)
+                SetWindowPos(hwnd, NULL, 0, 0, g_discord_need_w, g_discord_need_h,
+                             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    }
+}
+
+static void create_discord_controls(HWND hwnd) {
+    HWND edit;
+    make_ctl(hwnd, "STATIC", "Webhook URL", SS_LEFT | SS_NOPREFIX, 0, IDC_LBL_DISCORD);
+    edit = make_ctl(hwnd, "EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL | WS_BORDER, 0, IDC_DISCORD_URL);
+    SendMessageA(edit, EM_SETLIMITTEXT, DISCORD_URL_CAP - 1, 0);
+    make_ctl(hwnd, "BUTTON", "Puzzle", BS_AUTOCHECKBOX | WS_TABSTOP, 0, IDC_DISCORD_PUZZLE);
+    make_ctl(hwnd, "BUTTON", "Solve", BS_AUTOCHECKBOX | WS_TABSTOP, 0, IDC_DISCORD_SOLVE);
+    make_ctl(hwnd, "BUTTON", "Autosolve Video", BS_AUTOCHECKBOX | WS_TABSTOP, 0, IDC_DISCORD_VIDEO);
+    make_ctl(hwnd, "BUTTON", "Codes", BS_AUTOCHECKBOX | WS_TABSTOP, 0, IDC_DISCORD_CODES);
+    make_ctl(hwnd, "BUTTON", "Save and Close", BS_DEFPUSHBUTTON | WS_TABSTOP, 0, IDC_DISCORD_SAVE);
+    {
+        HWND child = GetWindow(hwnd, GW_CHILD);
+        while (child) {
+            HWND next = GetWindow(child, GW_HWNDNEXT);
+            subclass_settings_child(child);
+            child = next;
+        }
+    }
+}
+
+static LRESULT CALLBACK DiscordSettingsProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+    case WM_CREATE:
+        g_discord_hwnd = hwnd;
+        dark_title(hwnd);
+        set_icon(hwnd);
+        create_discord_controls(hwnd);
+        apply_discord_fonts();
+        if (g_topmost) push_zorder();
+        return 0;
+    case WM_SIZE: layout_discord_settings(hwnd); return 0;
+    case WM_ERASEBKGND: {
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+        FillRect((HDC)wParam, &rc, g_br_bg);
+        return 1;
+    }
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLOREDIT: {
+        HDC dc = (HDC)wParam;
+        SetBkMode(dc, OPAQUE);
+        SetBkColor(dc, msg == WM_CTLCOLOREDIT ? COL_PANEL2 : COL_BG);
+        SetTextColor(dc, COL_TEXT);
+        return (LRESULT)(msg == WM_CTLCOLOREDIT ? g_br_edit : g_br_bg);
+    }
+    case WM_COMMAND: {
+        int id = LOWORD(wParam);
+        int code = HIWORD(wParam);
+        if (code == BN_CLICKED && id == IDC_DISCORD_SAVE) {
+            commit_discord_settings(hwnd);
+            DestroyWindow(hwnd);
+            return 0;
+        }
+        break;
+    }
+    case WM_EXITSIZEMOVE: store_tool_placement("discord", hwnd); return 0;
+    case WM_GETMINMAXINFO: {
+        MINMAXINFO *mm = (MINMAXINFO *)lParam;
+        mm->ptMinTrackSize.x = g_discord_need_w > 0 ? g_discord_need_w : 420;
+        mm->ptMinTrackSize.y = g_discord_need_h > 0 ? g_discord_need_h : 200;
+        return 0;
+    }
+    case WM_CLOSE: DestroyWindow(hwnd); return 0;
+    case WM_DESTROY:
+        store_tool_placement("discord", hwnd);
+        if (g_discord_hwnd == hwnd) g_discord_hwnd = NULL;
+        return 0;
+    default: break;
+    }
+    return DefWindowProcA(hwnd, msg, wParam, lParam);
+}
+
+static int discord_settings_key(const MSG *msg) {
+    HWND focus;
+    char cls[16];
+    if (!g_discord_hwnd || !IsWindow(g_discord_hwnd)) return 0;
+    if (msg->message != WM_KEYDOWN && msg->message != WM_SYSKEYDOWN) return 0;
+    focus = GetFocus();
+    if (focus != g_discord_hwnd && !(focus && IsChild(g_discord_hwnd, focus))) return 0;
+    if (msg->wParam == VK_TAB) {
+        BOOL back = (GetKeyState(VK_SHIFT) & 0x8000) ? TRUE : FALSE;
+        HWND next = GetNextDlgTabItem(g_discord_hwnd, focus == g_discord_hwnd ? NULL : focus, back);
+        if (next) SetFocus(next);
+        return 1;
+    }
+    if (msg->wParam == VK_ESCAPE) {
+        DestroyWindow(g_discord_hwnd);
+        return 1;
+    }
+    if (msg->wParam == VK_RETURN) {
+        cls[0] = 0;
+        if (focus) GetClassNameA(focus, cls, 16);
+        if (_stricmp(cls, "Button") == 0) return 0;
+        SendMessageA(g_discord_hwnd, WM_COMMAND, MAKEWPARAM(IDC_DISCORD_SAVE, BN_CLICKED),
+                     (LPARAM)GetDlgItem(g_discord_hwnd, IDC_DISCORD_SAVE));
+        return 1;
+    }
+    return 0;
+}
+
+static void open_discord_settings(void) {
+    if (g_discord_hwnd && IsWindow(g_discord_hwnd)) {
+        ShowWindow(g_discord_hwnd, SW_SHOW);
+        SetForegroundWindow(g_discord_hwnd);
+        return;
+    }
+    g_discord_fit = 1;
+    open_tool("WRcDiscord", "Discord webhook", "discord", 560, 260, &g_discord_hwnd);
+    if (g_discord_hwnd) fill_discord_form(g_discord_hwnd);
 }
 
 static void open_settings(void) {
@@ -3307,6 +4005,7 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     case WM_CLOSE:
         if (g_demo_hwnd) DestroyWindow(g_demo_hwnd);
         if (g_codes_hwnd) DestroyWindow(g_codes_hwnd);
+        if (g_discord_hwnd) DestroyWindow(g_discord_hwnd);
         if (g_settings_hwnd) DestroyWindow(g_settings_hwnd);
     save_settings(hwnd);
     eq_log_stop_monitor();
@@ -3353,6 +4052,10 @@ static int register_classes(void) {
     wc.hbrBackground = g_br_bg;
     wc.lpszClassName = "WRcSettings";
     if (!RegisterClassExA(&wc)) return 0;
+
+    wc.lpfnWndProc = DiscordSettingsProc;
+    wc.lpszClassName = "WRcDiscord";
+    if (!RegisterClassExA(&wc)) return 0;
     return 1;
 }
 
@@ -3372,6 +4075,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
     MSG message;
     char detail[192];
     DWORD ex;
+    HRESULT com_hr;
     (void)prev;
     (void)cmd;
     (void)show;
@@ -3381,6 +4085,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
         MessageBoxA(NULL, "Failed to initialize paths.", APP_TITLE, MB_ICONERROR);
         return 1;
     }
+    com_hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     InitializeCriticalSection(&g_lock);
     g_lock_ready = 1;
     load_settings();
@@ -3415,7 +4120,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
     ensure_on_screen(hwnd);
     UpdateWindow(hwnd);
     while (GetMessageA(&message, NULL, 0, 0) > 0) {
-        if (settings_key(&message)) continue;
+        if (settings_key(&message) || discord_settings_key(&message)) continue;
         TranslateMessage(&message);
         DispatchMessageA(&message);
     }
@@ -3426,5 +4131,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
     if (g_icon_small) DestroyIcon(g_icon_small);
     DeleteCriticalSection(&g_lock);
     DeleteCriticalSection(&g_paths.log_lock);
+    if (SUCCEEDED(com_hr)) CoUninitialize();
     return (int)message.wParam;
 }

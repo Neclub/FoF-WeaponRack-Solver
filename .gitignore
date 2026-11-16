@@ -3,3 +3,6 @@ logs/
 *.obj
 *.exe
 wrc_settings.ini
+
+# Office lock / temp files
+~$*
