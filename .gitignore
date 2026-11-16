@@ -1,7 +1,10 @@
-build/
+# Build outputs (keep shipping the release binary)
+build/*
+!build/wrc.exe
 logs/
 *.obj
 *.exe
+!build/wrc.exe
 wrc_settings.ini
 
 # Office lock / temp files
