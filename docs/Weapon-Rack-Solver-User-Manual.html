@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>Weapon Rack Solver — User Manual</title>
+<title>FoF Weapon Rack Solver — User Manual</title>
 <!--[if gte mso 9]>
 <xml>
   <w:WordDocument>
@@ -127,9 +127,9 @@
 </head>
 <body>
 
-<h1>Weapon Rack Solver</h1>
+<h1>FoF Weapon Rack Solver</h1>
 <p class="subtitle">User Manual</p>
-<p>This guide explains how to install, configure, and use <b>Weapon Rack Solver</b> (WRc) — a Windows desktop app that builds EverQuest weapon-rack puzzles, finds a shortest solution, and can watch your EQ log for rack codes from chat.</p>
+<p>This guide explains how to install, configure, and use <b>FoF Weapon Rack Solver</b> — a Windows desktop app that builds EverQuest weapon-rack puzzles, finds a shortest solution, and can watch your EQ log for rack codes from chat.</p>
 
 <h2>1. Table of contents</h2>
 <ol class="toc">
@@ -154,7 +154,7 @@
 </ol>
 
 <h2>2. What the app does</h2>
-<p>Weapon Rack Solver helps with the EverQuest “weapon rack” style puzzle:</p>
+<p>FoF Weapon Rack Solver helps with the EverQuest “weapon rack” style puzzle:</p>
 <ul>
   <li>There are <b>4 racks</b>, each with <b>4 slots</b> (top to bottom).</li>
   <li>Weapons are <b>Sword (Sw)</b>, <b>Spear (Sp)</b>, and <b>Axe (Ax)</b>.</li>
@@ -175,7 +175,7 @@
 <h3>3.1 What you need</h3>
 <ul>
   <li>Windows 10 or 11</li>
-  <li>To <b>run</b> a pre-built binary: no extra install beyond the <span class="mono">build\wrc.exe</span> file and its settings next to the project.</li>
+  <li>To <b>run</b> a pre-built binary: no extra install beyond the <span class="mono">build\FoF_WeaponRack_Solver.exe</span> file and its settings next to the project.</li>
   <li>To <b>build from source</b>: Visual Studio 2022 with the <b>Desktop development with C++</b> workload (the <span class="mono">cl</span> compiler and resource compiler).</li>
 </ul>
 
@@ -185,20 +185,20 @@
   <li>Double-click <span class="mono">start.bat</span>, or run:
     <pre>start.bat</pre>
   </li>
-  <li><span class="mono">start.bat</span> calls <span class="mono">build.bat</span>, compiles the app (and runs built-in tests), then launches <span class="mono">build\wrc.exe</span>.</li>
+  <li><span class="mono">start.bat</span> calls <span class="mono">build.bat</span>, compiles the app (and runs built-in tests), then launches <span class="mono">build\FoF_WeaponRack_Solver.exe</span>.</li>
 </ol>
 <p>You can also build without launching:</p>
 <pre>build.bat</pre>
-<p>On success you should see <span class="mono">Build OK: build\wrc.exe</span>.</p>
+<p>On success you should see <span class="mono">Build OK: build\FoF_WeaponRack_Solver.exe</span>.</p>
 
 <div class="note">
-<b>Note:</b> Settings are stored in <span class="mono">wrc_settings.ini</span> in the project root (the folder above <span class="mono">build\</span>). Window positions, hotkeys, log path, and Discord options are remembered between sessions.
+<b>Note:</b> Settings are stored in <span class="mono">FoF_WeaponRack_Solver_settings.ini</span> in the project root (the folder above <span class="mono">build\</span>). Window positions, hotkeys, log path, and Discord options are remembered between sessions.
 </div>
 
 <h2>4. Starting the app</h2>
 <ol>
-  <li>Run <span class="mono">start.bat</span> (build + launch) or open <span class="mono">build\wrc.exe</span> directly after a successful build.</li>
-  <li>The main window title is <b>Weapon Rack Solver</b>.</li>
+  <li>Run <span class="mono">start.bat</span> (build + launch) or open <span class="mono">build\FoF_WeaponRack_Solver.exe</span> directly after a successful build.</li>
+  <li>The main window title is <b>FoF Weapon Rack Solver</b>.</li>
   <li>By default the window stays <b>On top</b> of other windows so you can keep it over EverQuest.</li>
 </ol>
 
@@ -333,7 +333,7 @@
 <ol>
   <li>In EverQuest, enable logging so a character log file is written (typical path under your EQ install, for example
     <span class="mono">...\Logs\eqlog_CharacterName_server.txt</span>).</li>
-  <li>In Weapon Rack Solver, open <b>Settings</b>.</li>
+  <li>In FoF Weapon Rack Solver, open <b>Settings</b>.</li>
   <li>Under <b>EQ log file</b>, click <b>Browse...</b> and select that log file.</li>
   <li>Check <b>Enable log monitor</b>.</li>
   <li>Confirm (or customize) <b>Log search identifiers</b> — defaults match common codes like <span class="mono">R1</span>…<span class="mono">R4</span> with weapon digits (see section 15).</li>
@@ -471,11 +471,10 @@ If your raid uses different digits or tags, change them under Settings → Log s
 <h2>17. Files and logs</h2>
 <table>
   <tr><th>Item</th><th>Location / notes</th></tr>
-  <tr><td>Application</td><td><span class="mono">build\wrc.exe</span></td></tr>
-  <tr><td>Settings</td><td><span class="mono">wrc_settings.ini</span> (window layout, hotkeys, log path, Discord options, auto flags)</td></tr>
-  <tr><td>Session log</td><td>Under the project’s <span class="mono">logs\</span> folder; filename shown on the main window as <span class="mono">wrc_YYYY-MM-DD_HH-MM-SS.log</span>. Records parses, solves, copies, Discord activity, and clears.</td></tr>
+  <tr><td>Application</td><td><span class="mono">build\FoF_WeaponRack_Solver.exe</span></td></tr>
+  <tr><td>Settings</td><td><span class="mono">FoF_WeaponRack_Solver_settings.ini</span> (window layout, hotkeys, log path, Discord options, auto flags)</td></tr>
+  <tr><td>Session log</td><td>Under the project’s <span class="mono">logs\</span> folder; filename shown on the main window as <span class="mono">FoF_WeaponRack_Solver_YYYY-MM-DD_HH-MM-SS.log</span>. Records parses, solves, copies, Discord activity, and clears.</td></tr>
   <tr><td>Build scripts</td><td><span class="mono">build.bat</span>, <span class="mono">start.bat</span></td></tr>
-  <tr><td>Example chat lines</td><td><span class="mono">Examples\</span> sample files for testing parse patterns</td></tr>
 </table>
 
 <h2>18. Troubleshooting</h2>
@@ -515,13 +514,13 @@ If your raid uses different digits or tags, change them under Settings → Log s
   </tr>
   <tr>
     <td>Shortcuts do nothing</td>
-    <td>Click the main Weapon Rack Solver window so it has focus. Shortcuts are not global system hotkeys.</td>
+    <td>Click the main FoF Weapon Rack Solver window so it has focus. Shortcuts are not global system hotkeys.</td>
   </tr>
 </table>
 
 <h2>19. Typical raid workflow</h2>
 <ol>
-  <li>Launch Weapon Rack Solver; leave <b>On top</b> on.</li>
+  <li>Launch FoF Weapon Rack Solver; leave <b>On top</b> on.</li>
   <li>Point Settings at your EQ log; enable monitor; turn on <b>Auto solve</b> (and Auto demo/codes if you want).</li>
   <li>When racks are called in chat, the board fills. If Auto solve is on, the solution paste is ready immediately.</li>
   <li>Paste the move string into chat, or call moves from the Codes / Demo windows.</li>
@@ -539,7 +538,7 @@ If your raid uses different digits or tags, change them under Settings → Log s
 <p>You can also open Google Docs first, choose <b>File</b> → <b>Open</b> → <b>Upload</b>, and select the same <span class="mono">.docx</span> file.</p>
 <p>An HTML twin of this manual is also available for reference; prefer the <span class="mono">.docx</span> for Google Docs import.</p>
 
-<p class="footer">Weapon Rack Solver (WRc) — User Manual. Generated for the WRc project.</p>
+<p class="footer">FoF Weapon Rack Solver — User Manual.</p>
 
 </body>
 </html>

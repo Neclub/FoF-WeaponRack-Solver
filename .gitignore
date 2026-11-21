@@ -1,11 +1,18 @@
-# Build outputs (keep shipping the release binary)
-build/*
-!build/wrc.exe
-logs/
+# Build outputs (ship binaries via GitHub Releases)
+build/
 *.obj
 *.exe
-!build/wrc.exe
+*.res
+*.ico
+
+# Runtime / local-only
+logs/
+Capture/
+*_settings.ini
 wrc_settings.ini
+FoF_WeaponRack_Solver_settings.ini
 
 # Office lock / temp files
 ~$*
+*.tmp
+*.bak

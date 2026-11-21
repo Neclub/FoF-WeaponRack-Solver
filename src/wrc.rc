@@ -1,5 +1,5 @@
 #include "wrc_res.h"
 
-IDI_APP ICON "..\\build\\wrc.ico"
+IDI_APP ICON "..\\build\\FoF_WeaponRack_Solver.ico"
 
 1 24 "wrc.manifest"

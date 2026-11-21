@@ -40,8 +40,8 @@
 #pragma comment(lib, "windowscodecs.lib")
 #pragma comment(lib, "winhttp.lib")
 
-#define APP_TITLE "Weapon Rack Solver"
-#define SETTINGS_NAME "wrc_settings.ini"
+#define APP_TITLE "FoF Weapon Rack Solver"
+#define SETTINGS_NAME "FoF_WeaponRack_Solver_settings.ini"
 #define ID_TIMER_TOPMOST 1
 #define ID_TIMER_LOGMON 3
 #define ID_TIMER_DEMO 4
@@ -392,8 +392,8 @@ static int init_paths(void) {
     _mkdir(g_paths.logs);
     snprintf(g_paths.settings, sizeof(g_paths.settings), "%s\\%s", g_paths.root, SETTINGS_NAME);
     GetLocalTime(&st);
-    snprintf(g_paths.log_name, sizeof(g_paths.log_name), "wrc_%04d-%02d-%02d_%02d-%02d-%02d.log", st.wYear,
-             st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+    snprintf(g_paths.log_name, sizeof(g_paths.log_name), "FoF_WeaponRack_Solver_%04d-%02d-%02d_%02d-%02d-%02d.log",
+             st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
     snprintf(g_paths.log_file, sizeof(g_paths.log_file), "%s\\%s", g_paths.logs, g_paths.log_name);
     InitializeCriticalSection(&g_paths.log_lock);
     return 1;
@@ -1544,7 +1544,7 @@ static void queue_discord_after_solve(void) {
     }
     copy_str(job->url, sizeof(job->url), url);
     GetLocalTime(&st);
-    snprintf(job->content, sizeof(job->content), "Weapon Rack Solver\n%04d-%02d-%02d %02d:%02d:%02d", st.wYear,
+    snprintf(job->content, sizeof(job->content), "FoF Weapon Rack Solver\n%04d-%02d-%02d %02d:%02d:%02d", st.wYear,
              st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 
     if (want_puzzle) {

@@ -199,13 +199,13 @@ int discord_webhook_send(const char *url, const char *content, const DiscordFile
         wcsncat(full_path, extra, 2047 - used);
     }
 
-    snprintf(boundary, sizeof(boundary), "----wrc%d", (int)(GetTickCount() & 0x7fffffff));
+    snprintf(boundary, sizeof(boundary), "----FoF_WeaponRack_Solver%d", (int)(GetTickCount() & 0x7fffffff));
     if (!build_body(content, files, file_count, boundary, &body, &body_len)) {
         set_err(err, err_cap, "Failed to build webhook body");
         return 0;
     }
 
-    session = WinHttpOpen(L"WeaponRackSolver/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
+    session = WinHttpOpen(L"FoF_WeaponRack_Solver/1.1", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
                           WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) {
         set_err(err, err_cap, "WinHttpOpen failed");

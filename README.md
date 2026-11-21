@@ -1,7 +1,15 @@
-# Weapon Rack Solver (WRc)
+# FoF Weapon Rack Solver
 
-Windows helper for EverQuest weapon-rack puzzles. Enter the four racks (by hand or from chat in the EQ log), get a shortest move list to sort them into three mono racks and one empty, and optionally share the result via Discord.
+**Version 1.1**
+
+Helper for the **Favor of Fortune – Eriak Zek** raid in EverQuest. During the weapon-rack mechanic, you need to sort axes, swords, and spears across four racks. This app takes the current rack layout (typed in by hand or read from the EQ log), finds a short sequence of moves to finish the puzzle, and can show demos, codes, and optional Discord posts.
+
+![FoF Weapon Rack Solver interface](docs/screenshot.png)
 
 ## Download
 
-[Download wrc.exe](https://github.com/Neclub/WRc/releases/latest/download/wrc.exe) from the [latest release](https://github.com/Neclub/WRc/releases/latest).
+[Latest build](https://github.com/Neclub/WRc/releases/latest) — download `FoF_WeaponRack_Solver.exe` from the [latest release](https://github.com/Neclub/WRc/releases/latest).
+
+## Manual
+
+[Weapon Rack Solver User Manual](docs/Weapon-Rack-Solver-User-Manual.html)

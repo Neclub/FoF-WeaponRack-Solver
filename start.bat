@@ -6,5 +6,5 @@ if errorlevel 1 (
   exit /b 1
 )
 echo.
-echo Starting Weapon Rack Solver...
-start "" "build\wrc.exe"
+echo Starting FoF Weapon Rack Solver...
+start "" "build\FoF_WeaponRack_Solver.exe"
