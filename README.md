@@ -12,4 +12,4 @@ Helper for the **Favor of Fortune – Eriak Zek** raid in EverQuest. During the 
 
 ## Manual
 
-[Weapon Rack Solver User Manual](docs/Weapon-Rack-Solver-User-Manual.html)
+[Weapon Rack Solver User Manual](docs/Weapon-Rack-Solver-User-Manual.docx)
