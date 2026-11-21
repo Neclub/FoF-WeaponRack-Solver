@@ -8,7 +8,7 @@ Helper for the **Favor of Fortune – Eriak Zek** raid in EverQuest. During the 
 
 ## Download
 
-[Latest build](https://github.com/Neclub/WRc/releases/latest) — download `FoF_WeaponRack_Solver.exe` from the [latest release](https://github.com/Neclub/WRc/releases/latest).
+[Latest build](https://github.com/Neclub/FoF-WeaponRack-Solver/releases/latest) — download `FoF_WeaponRack_Solver.exe` from the [latest release](https://github.com/Neclub/FoF-WeaponRack-Solver/releases/latest).
 
 ## Manual
 
