@@ -1678,6 +1678,19 @@ static void start_solve(int automatic) {
 }
 
 static void place_weapon(uint8_t cell) {
+    if (cell >= 1 && cell <= 3) {
+        int totals[3];
+        uint8_t current = g_board[g_sel_r][g_sel_s];
+        const char *names[3] = {"Swords", "Spears", "Axes"};
+        board_totals(totals);
+        if (totals[cell - 1] >= 4 && current != cell) {
+            char msg[48];
+            snprintf(msg, sizeof(msg), "Already have 4 %s", names[cell - 1]);
+            set_error(msg);
+            if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
+            return;
+        }
+    }
     g_board[g_sel_r][g_sel_s] = cell;
     if (g_sel_s < 3)
         g_sel_s++;
