@@ -15,6 +15,7 @@
 #include <dwmapi.h>
 #include <uxtheme.h>
 #include <objbase.h>
+#include <shellapi.h>
 
 #include <ctype.h>
 #include <stdio.h>
@@ -29,6 +30,7 @@
 #include "wrc_res.h"
 #include "imgenc.h"
 #include "discord.h"
+#include "update.h"
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
@@ -39,8 +41,10 @@
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "windowscodecs.lib")
 #pragma comment(lib, "winhttp.lib")
+#pragma comment(lib, "shell32.lib")
 
 #define APP_TITLE "FoF Weapon Rack Solver"
+#define APP_VERSION "1.2.0"
 #define SETTINGS_NAME "FoF_WeaponRack_Solver_settings.ini"
 #define ID_TIMER_TOPMOST 1
 #define ID_TIMER_LOGMON 3
@@ -53,6 +57,7 @@
 #define LOGMON_LINE_CAP 4096
 #define LOGMON_SCAN_RECENT (64 * 1024)
 #define WM_APP_SOLVED (WM_APP + 1)
+#define WM_APP_UPDATE (WM_APP + 2)
 #define HIT_CAP 96
 
 #define COL_BG RGB(18, 20, 26)
@@ -174,6 +179,11 @@ typedef struct SolveJob {
     uint8_t snap[4][4];
     WrSolveResult result;
 } SolveJob;
+
+typedef struct UpdateJob {
+    HWND hwnd;
+    UpdateInfo info;
+} UpdateJob;
 
 static HINSTANCE g_inst;
 static HWND g_hwnd;
@@ -1677,6 +1687,67 @@ static void start_solve(int automatic) {
     CloseHandle(thread);
 }
 
+static void app_title_text(char *out, size_t cap) {
+    snprintf(out, cap, "%s %s", APP_TITLE, APP_VERSION);
+}
+
+static void apply_update_result(UpdateJob *job) {
+    char msg[320];
+    int choice;
+    if (!job) return;
+    if (!job->hwnd || !IsWindow(job->hwnd)) {
+        free(job);
+        return;
+    }
+    snprintf(msg, sizeof(msg),
+             "A newer version is available.\n\n"
+             "Current version: %s\n"
+             "New version: %s\n\n"
+             "Open the GitHub download page?",
+             APP_VERSION, job->info.version);
+    choice = MessageBoxA(job->hwnd, msg, APP_TITLE, MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND);
+    if (choice == IDYES && job->info.page_url[0]) {
+        ShellExecuteA(job->hwnd, "open", job->info.page_url, NULL, NULL, SW_SHOWNORMAL);
+        log_write("update", "opened download page");
+    } else {
+        log_write("update", "dismissed");
+    }
+    free(job);
+}
+
+static DWORD WINAPI update_thread(LPVOID arg) {
+    UpdateJob *job = (UpdateJob *)arg;
+    char err[UPDATE_ERR_CAP];
+    UpdateInfo info;
+    if (!job) return 0;
+    if (!update_check_latest(&info, err, sizeof(err))) {
+        free(job);
+        return 0;
+    }
+    if (!update_is_newer(APP_VERSION, info.version)) {
+        free(job);
+        return 0;
+    }
+    job->info = info;
+    if (!PostMessageA(job->hwnd, WM_APP_UPDATE, 0, (LPARAM)job)) free(job);
+    return 0;
+}
+
+static void start_update_check(HWND hwnd) {
+    UpdateJob *job;
+    HANDLE thread;
+    if (!hwnd) return;
+    job = (UpdateJob *)calloc(1, sizeof(UpdateJob));
+    if (!job) return;
+    job->hwnd = hwnd;
+    thread = CreateThread(NULL, 0, update_thread, job, 0, NULL);
+    if (!thread) {
+        free(job);
+        return;
+    }
+    CloseHandle(thread);
+}
+
 static void place_weapon(uint8_t cell) {
     if (cell >= 1 && cell <= 3) {
         int totals[3];
@@ -2132,7 +2203,11 @@ static void layout_main(HWND hwnd, HDC hdc) {
         int title_w = width - settings_w - top_w - S(16);
         RECT title = rect_xywh(pad, y, title_w > S(80) ? title_w : S(80), S(34));
         int cy = y + (S(34) - row_h) / 2;
-        draw_text(hdc, title, APP_TITLE, COL_TEXT, g_font_title, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        {
+            char titled[96];
+            app_title_text(titled, sizeof(titled));
+            draw_text(hdc, title, titled, COL_TEXT, g_font_title, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        }
         draw_check(hdc, hwnd, rect_xywh(pad + width - settings_w - gap - top_w, cy, top_w, row_h), "On top", g_topmost,
                    HIT_TOP);
         draw_button(hdc, hwnd, rect_xywh(pad + width - settings_w, cy, settings_w, row_h), "Settings", HIT_SETTINGS, 0, 1,
@@ -3895,9 +3970,10 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         dark_scrollbar(hwnd);
         set_icon(hwnd);
         ensure_fonts(hwnd);
-    if (g_topmost) SetTimer(hwnd, ID_TIMER_TOPMOST, TOPMOST_MS, NULL);
-    eq_log_start_monitor();
+        if (g_topmost) SetTimer(hwnd, ID_TIMER_TOPMOST, TOPMOST_MS, NULL);
+        eq_log_start_monitor();
         pull_matches();
+        start_update_check(hwnd);
         return 0;
     case WM_PAINT:
         paint_window(hwnd, 0);
@@ -3997,6 +4073,9 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         return 0;
     case WM_APP_SOLVED:
         apply_solve_result((SolveJob *)lParam);
+        return 0;
+    case WM_APP_UPDATE:
+        apply_update_result((UpdateJob *)lParam);
         return 0;
     case WM_SIZE:
         InvalidateRect(hwnd, NULL, FALSE);
@@ -4119,8 +4198,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
     }
     ex = WS_EX_APPWINDOW;
     if (g_topmost) ex |= WS_EX_TOPMOST;
-    hwnd = CreateWindowExA(ex, "WRcMain", APP_TITLE, WS_OVERLAPPEDWINDOW | WS_VSCROLL, g_win_x, g_win_y, g_win_w,
-                           g_win_h, NULL, NULL, g_inst, NULL);
+    {
+        char titled[96];
+        app_title_text(titled, sizeof(titled));
+        hwnd = CreateWindowExA(ex, "WRcMain", titled, WS_OVERLAPPEDWINDOW | WS_VSCROLL, g_win_x, g_win_y, g_win_w,
+                               g_win_h, NULL, NULL, g_inst, NULL);
+    }
     if (!hwnd) {
         MessageBoxA(NULL, "Could not create the window.", APP_TITLE, MB_ICONERROR);
         DeleteCriticalSection(&g_lock);

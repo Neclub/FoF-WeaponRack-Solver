@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-21
+
+### Added
+
+- Startup update check against the GitHub latest release, with current and new version shown and an option to open the download page.
+- App version shown in the window title bar and in-app header.
+
 ## [1.1.1] - 2026-11-21
 
 ### Fixed

@@ -49,9 +49,11 @@ cl /nologo /O2 /W3 /std:c17 /D_CRT_SECURE_NO_WARNINGS /c /Fo:build\imgenc.obj sr
 if errorlevel 1 goto :fail
 cl /nologo /O2 /W3 /std:c17 /D_CRT_SECURE_NO_WARNINGS /c /Fo:build\discord.obj src\discord.c
 if errorlevel 1 goto :fail
+cl /nologo /O2 /W3 /std:c17 /D_CRT_SECURE_NO_WARNINGS /c /Fo:build\update.obj src\update.c
+if errorlevel 1 goto :fail
 cl /nologo /O2 /W3 /std:c17 /D_CRT_SECURE_NO_WARNINGS /c /Fo:build\app.obj src\app.c
 if errorlevel 1 goto :fail
-cl /nologo /Fe:%OUT% build\app.obj build\solver.obj build\logmon.obj build\imgenc.obj build\discord.obj build\FoF_WeaponRack_Solver.res /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comdlg32.lib comctl32.lib dwmapi.lib uxtheme.lib ole32.lib windowscodecs.lib winhttp.lib
+cl /nologo /Fe:%OUT% build\app.obj build\solver.obj build\logmon.obj build\imgenc.obj build\discord.obj build\update.obj build\FoF_WeaponRack_Solver.res /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comdlg32.lib comctl32.lib dwmapi.lib uxtheme.lib ole32.lib windowscodecs.lib winhttp.lib shell32.lib
 if errorlevel 1 goto :fail
 
 cl /nologo /O2 /W3 /std:c17 /D_CRT_SECURE_NO_WARNINGS /Fe:%TEST_OUT% src\test_solver.c src\solver.c
